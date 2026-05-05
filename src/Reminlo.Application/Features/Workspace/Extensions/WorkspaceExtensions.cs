@@ -1,17 +1,21 @@
 using Mapster;
+using Reminlo.Application.Dto.Workspace;
 using Reminlo.Domain.Enums;
 
 namespace Reminlo.Application.Features.Workspace.Extensions;
 
 internal static class WorkspaceExtensions
 {
-    public static WorkspaceDto ToWorkspaceDto(this Domain.Entities.Workspace.Workspace workspace, Guid userId)
+    public static WorkspaceListDto ToWorkspaceListDto(this Domain.Entities.Workspace.Workspace workspace, Guid? userId)
     {
-        var dto = workspace.Adapt<WorkspaceDto>();
+        var dto = workspace.Adapt<WorkspaceListDto>();
 
-        // Get user's role from WorkspaceMember
         var userMember = workspace.Members.FirstOrDefault(m => m.UserId == userId);
-        dto.Role = (userMember?.Role ?? WorkspaceMemberRole.Member).ToString();
+        var workspaceRole = workspace.OwnerId == userId
+            ? WorkspaceMemberRole.Admin
+            : (userMember?.Role ?? WorkspaceMemberRole.Member);
+        
+        dto.Role = workspaceRole.ToString();
 
         // Set members count
         dto.MembersCount = workspace.Members.Count;

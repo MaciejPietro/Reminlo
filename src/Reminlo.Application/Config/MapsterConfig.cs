@@ -1,4 +1,6 @@
 using Mapster;
+using Reminlo.Application.Dto.Workspace;
+using Reminlo.Domain.Entities.Workspace;
 
 namespace Reminlo.Application.Config;
 
@@ -6,7 +8,7 @@ public static class MapsterConfig
 {
     public static void Configure()
     {
-        TypeAdapterConfig<Domain.Entities.Workspace.Workspace, Features.Workspace.WorkspaceDto>
+        TypeAdapterConfig<Workspace, WorkspaceListDto>
             .NewConfig()
             .Ignore(dto => dto.Role)
             .Ignore(dto => dto.MembersCount);

@@ -17,24 +17,23 @@ using ResultKit;
 
 namespace Reminlo.Application.Features.Workspace;
 
-public sealed record GetWorkspacesQuery() : IRequest<Result<List<WorkspaceListDto>>>;
 
-internal sealed class GetWorkspacesQueryHandler(
+
+public sealed record GetAllWorkspacesQuery() : IRequest<Result<List<WorkspaceListDto>>>;
+
+internal sealed class GetAllWorkspacesQueryHandler(
     IWorkspaceRepository workspaceRepository,
     IUserService userService
-) : IRequestHandler<GetWorkspacesQuery, Result<List<WorkspaceListDto>>>
+) : IRequestHandler<GetAllWorkspacesQuery, Result<List<WorkspaceListDto>>>
 {
-    public async Task<Result<List<WorkspaceListDto>>> Handle(GetWorkspacesQuery request, CancellationToken cancellationToken)
+    public async Task<Result<List<WorkspaceListDto>>> Handle(GetAllWorkspacesQuery request, CancellationToken cancellationToken)
     {
-        var userResult = await userService.GetCurrentUserAsync();
-
-        var user = userResult.Value;
-
-        var workspaces = await workspaceRepository.GetAllWithMembersAsync(
-            x => x.OwnerId == user!.Id || x.Members.Any(m => m.UserId == user!.Id), cancellationToken);
-
+        var workspaces = await workspaceRepository.GetAllWithMembersAsync(cancellationToken: cancellationToken);
+        var userId = userService.GetCurrentUserId().Value;
+        var userGuid = userId is null ? (Guid?)null : Guid.Parse(userId);
+        
         return workspaces
-            .Select(w => w.ToWorkspaceListDto(user!.Id))
+            .Select(w => w.ToWorkspaceListDto(userGuid))
             .ToList();
     }
 }

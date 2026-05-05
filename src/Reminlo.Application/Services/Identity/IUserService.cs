@@ -11,5 +11,7 @@ namespace Reminlo.Application.Services.Identity
         Task<Result<string>> GetConfirmEmailToken(ApplicationUser user);
         Task<string> SendConfirmEmail(ApplicationUser user);
         Task<Result<ApplicationUser>> GetCurrentUserAsync();
+        
+        Result<string> GetCurrentUserId();
     }
 }

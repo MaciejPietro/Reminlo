@@ -1,4 +1,5 @@
-﻿using Reminlo.Application.Services;
+﻿using System.Security.Claims;
+using Reminlo.Application.Services;
 using Reminlo.Application.Services.Identity;
 using Reminlo.Domain.Entities.Identity;
 using Microsoft.AspNetCore.Http;
@@ -65,5 +66,12 @@ internal sealed class UserService(
         }
 
         return Result<ApplicationUser>.Success(user);
+    }
+
+    public Result<string> GetCurrentUserId()
+    {
+        var userId = httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Anonymous";
+
+        return Result<string>.Success(userId);
     }
 }

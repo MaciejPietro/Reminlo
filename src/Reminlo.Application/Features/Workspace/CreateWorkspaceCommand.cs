@@ -46,12 +46,14 @@ internal sealed class CreateWorkspaceCommandHandler(
             return Result<string>.Failure(new Error("401", "User is not authenticated."));
 
         var workspace = Reminlo.Domain.Entities.Workspace.Workspace.Create(user.Id, request.Name);
-
+        
         ICollection<WorkspaceMember> members = [];
         ICollection<WorkspaceInvitation> invitations = [];
 
         foreach (var memberEmail in request.Members)
         {
+            if (memberEmail == user.Email) continue;
+            
             var invitationToken =  invitationTokenService.GenerateToken();
             var invitation = WorkspaceInvitation.Create(workspace.Id, memberEmail, invitationToken);
             

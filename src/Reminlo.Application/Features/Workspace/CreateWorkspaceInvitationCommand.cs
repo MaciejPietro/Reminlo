@@ -1,16 +1,8 @@
-using System.Security.Claims;
 using MediatR;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Reminlo.Application.Features.Identity.Users;
 using Reminlo.Application.Repositories;
-using Reminlo.Application.Services;
 using Reminlo.Application.Services.Identity;
 using Reminlo.Application.Services.Workspace;
 using Reminlo.Domain.Common;
-using Reminlo.Domain.Entities.Identity;
 using Reminlo.Domain.Entities.Workspace;
 using RepositoryKit.Core.Interfaces;
 using ResultKit;
@@ -31,13 +23,30 @@ internal sealed class CreateWorkspaceInvitationCommandHandler(
     IInvitationTokenService invitationTokenService,
     IWorkspaceRepository workspaceRepository,
     IEmailQueueService emailQueueService,
+    IUserService userService,
     IUnitOfWork unitOfWork
 ) : IRequestHandler<CreateWorkspaceInvitationCommand, Result<string>>
 {
     public async Task<Result<string>> Handle(CreateWorkspaceInvitationCommand request, CancellationToken cancellationToken)
     {
 
+        var userResult = await userService.GetCurrentUserAsync();
+        var user = userResult.Value;
+
+        
+        var userId = user!.Id;
         var workspace = await workspaceRepository.GetAsync(x => x.Id == request.WorkspaceId, cancellationToken);
+
+        if (workspace!.OwnerId != userId)
+        {
+            return Result<string>.Failure(new Error("403", "You are not authorized to invite new members."));
+        }
+
+        if (request.Email == user!.Email)
+        {
+            return Result<string>.Failure(new Error("400", "You can't invite yourself."));
+        }
+        
         var invitationToken =  invitationTokenService.GenerateToken();
         
         var invitation = WorkspaceInvitation.Create(request.WorkspaceId, request.Email, invitationToken);

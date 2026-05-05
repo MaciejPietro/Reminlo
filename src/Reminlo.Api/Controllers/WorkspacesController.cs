@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Reminlo.Api.Abstractions;
 using Reminlo.Application.Features.Identity.Users;
@@ -9,7 +10,7 @@ namespace Reminlo.Api.Controllers;
 /// <summary>
 /// Controller for workspaces management.
 /// </summary>
-public class WorkspaceController(IMediator mediator) : ApiController(mediator)
+public class WorkspacesController(IMediator mediator) : ApiController(mediator)
 {
     /// <summary>
     /// Creates a new Workspace.
@@ -26,7 +27,7 @@ public class WorkspaceController(IMediator mediator) : ApiController(mediator)
     }
     
     [HttpGet]
-    public async Task<IActionResult> GetMyWorkspaces(GetWorkspacesQuery query, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetWorkspaces(GetWorkspacesQuery query, CancellationToken cancellationToken)
     {
         var response = await _mediator.Send(query, cancellationToken);
 
@@ -36,6 +37,7 @@ public class WorkspaceController(IMediator mediator) : ApiController(mediator)
         return Ok(response);
     }
     
+   
     [HttpPost("invitations")]
     public async Task<IActionResult> CreateInvitation([FromBody] CreateWorkspaceInvitationCommand request, CancellationToken cancellationToken)
     {
