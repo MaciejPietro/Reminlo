@@ -1,3 +1,3 @@
 namespace Reminlo.Domain.Enums;
 
-public enum InvitationStatus { Pending, Accepted, Declined, Expired }
+public enum InvitationStatus { Pending, Accepted, Rejected, Expired }

@@ -21,12 +21,12 @@ public class AuthController(IMediator mediator) : ApiController(mediator)
     {
         var response = await _mediator.Send(request, cancellationToken);
 
-        if (response.Value?.token is null)
+        if (!response.IsSuccess || response.Value?.token is null)
         {
-            return NotFound();
+            return Unauthorized(response.Error?.Message ?? "Invalid credentials.");
         }
-            
-            
+
+
         Response.Cookies.Append("accessToken", response.Value.token, new CookieOptions
         {
             HttpOnly = true,

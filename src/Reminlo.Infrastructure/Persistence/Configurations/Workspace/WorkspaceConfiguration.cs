@@ -23,6 +23,12 @@ public class WorkspaceConfiguration : IEntityTypeConfiguration<Domain.Entities.W
 
         builder.HasMany(x => x.Members)
             .WithOne()
-            .HasForeignKey(x => x.WorkspaceId);
+            .HasForeignKey(x => x.WorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasMany(x => x.Invitations)
+            .WithOne()
+            .HasForeignKey(x => x.WorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

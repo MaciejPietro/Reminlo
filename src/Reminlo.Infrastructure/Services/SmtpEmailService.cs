@@ -21,7 +21,7 @@ public class SmtpEmailService(IConfiguration configuration) : IEmailService
     {
         var emailConfig = configuration.GetSection("Email");
 
-        using var client = new SmtpClient(emailConfig["Host"], int.Parse(emailConfig["Port"] ?? string.Empty))
+        using SmtpClient client = new(emailConfig["Host"], int.Parse(emailConfig["Port"] ?? string.Empty))
         {
             Credentials = new NetworkCredential(emailConfig["UserName"], emailConfig["Password"]),
             EnableSsl = bool.Parse(emailConfig["EnableSsl"] ?? string.Empty)
@@ -43,6 +43,13 @@ public class SmtpEmailService(IConfiguration configuration) : IEmailService
                 mailMessage.CC.Add(address);
             }
         }
+        
+      
+        Console.WriteLine($"Username: {emailConfig["UserName"]}");
+        Console.WriteLine($"Password: {emailConfig["Password"]}");
+        Console.WriteLine($"EnableSsl: {emailConfig["EnableSsl"]}");
+        Console.WriteLine($"Host: {emailConfig["Host"]}");
+        Console.WriteLine($"Port: {emailConfig["Port"]}");
 
         await client.SendMailAsync(mailMessage,cancellationToken);
     }

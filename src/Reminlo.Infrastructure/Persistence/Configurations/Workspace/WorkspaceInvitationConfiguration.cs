@@ -40,7 +40,8 @@ public class WorkspaceInvitationConfiguration : IEntityTypeConfiguration<Workspa
         builder.HasIndex(x => x.Token);
 
         builder.HasOne<Domain.Entities.Workspace.Workspace>()
-            .WithMany()
-            .HasForeignKey(x => x.WorkspaceId);
+            .WithMany(x => x.Invitations)
+            .HasForeignKey(x => x.WorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

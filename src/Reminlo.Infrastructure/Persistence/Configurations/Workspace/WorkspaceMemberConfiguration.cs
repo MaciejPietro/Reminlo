@@ -34,6 +34,7 @@ public class WorkspaceMemberConfiguration : IEntityTypeConfiguration<WorkspaceMe
 
         builder.HasOne<Domain.Entities.Workspace.Workspace>()
             .WithMany(x => x.Members)
-            .HasForeignKey(x => x.WorkspaceId);
+            .HasForeignKey(x => x.WorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

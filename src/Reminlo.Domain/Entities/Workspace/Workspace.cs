@@ -9,17 +9,21 @@ public class Workspace : BaseEntity<WorkspaceId>
     public string Name { get; private set; } = null!;
     public ICollection<WorkspaceMember> Members { get; private set; }
 
+    public ICollection<WorkspaceInvitation> Invitations { get; private set; }
+
+    
     private Workspace()
     {
         Members = [];
+        Invitations = [];
     }
 
-    public static Workspace Create(string ownerId, string name, ICollection<WorkspaceMember>? members = null)
+    public static Workspace Create(Guid ownerId, string name, ICollection<WorkspaceMember>? members = null)
     {
         var entity = new Workspace
         {
             Id = Guid.NewGuid(),
-            OwnerId = new Guid(ownerId),
+            OwnerId = ownerId,
             Name = name.Trim(),
             Members = members ?? []
         };
@@ -27,17 +31,17 @@ public class Workspace : BaseEntity<WorkspaceId>
         return entity;
     }
 
-    public Workspace Update(string? name, ICollection<WorkspaceMember>? members = null)
+   
+    public Workspace AddInvitation(WorkspaceInvitation invitation)
     {
-        if (name is not null)
-        {
-            Name = name;
-        }
+        Invitations.Add(invitation);
 
-        if (members is not null)
-        {
-            Members = members;
-        }
+        return this;
+    }
+
+    public Workspace AddMember(WorkspaceMember member)
+    {
+        Members.Add(member);
 
         return this;
     }

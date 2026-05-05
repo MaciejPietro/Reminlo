@@ -2,6 +2,7 @@
 
 using Mapster;
 using Microsoft.Extensions.DependencyInjection;
+using Reminlo.Application.Config;
 
 namespace Reminlo.Application;
 
@@ -21,6 +22,7 @@ public static class DependencyInjection
             cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
 
         services.AddMapster();
+        MapsterConfig.Configure();
 
         return services;
     }

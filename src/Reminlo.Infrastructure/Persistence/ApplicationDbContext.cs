@@ -34,6 +34,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<HangFireUser> HangFireUsers { get; set; }
     public DbSet<Domain.Entities.Workspace.Workspace> Workspaces { get; set; }
     public DbSet<Domain.Entities.Workspace.WorkspaceMember> WorkspaceMembers { get; set; }
+    public DbSet<Domain.Entities.Workspace.WorkspaceInvitation> WorkspaceInvitations { get; set; }
 
     public override int SaveChanges()
     {
