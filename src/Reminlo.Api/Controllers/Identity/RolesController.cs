@@ -1,5 +1,6 @@
 ﻿using Reminlo.Application.Features.Identity.Roles;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Reminlo.Api.Abstractions;
 
@@ -8,6 +9,7 @@ namespace Reminlo.Api.Controllers.Identity;
 /// <summary>
 /// Controller providing endpoints for managing application roles.
 /// </summary>
+[Authorize(Roles = "admin,developer")]
 public class RolesController : ApiController
 {
     public RolesController(IMediator mediator) : base(mediator)
@@ -21,7 +23,7 @@ public class RolesController : ApiController
     public async Task<IActionResult> Create(CreateRoleCommand request, CancellationToken cancellationToken)
     {
         var response = await _mediator.Send(request, cancellationToken);
-        return CreatedAtAction(nameof(GetAll), response);
+        return Ok(response);
     }
 
     /// <summary>
@@ -53,6 +55,7 @@ public class RolesController : ApiController
     {
         var command = new DeleteByIdRoleCommand(id);
         var response = await _mediator.Send(command, cancellationToken);
-        return NoContent();
+        return Ok(response);
+
     }
 }

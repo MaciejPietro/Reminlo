@@ -49,8 +49,12 @@ builder.Services.AddApplication(); // Registers MediatR and application services
 builder.Services.AddInfrastructure(connectionString);
 
 builder.Services.AddAuthConfiguration(builder.Configuration);
-
-builder.Services.AddControllers();
+builder.Services.AddExceptionsHandler();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<Reminlo.Api.Filters.ErrorOrResultFilter>();
+    options.Filters.Add<Reminlo.Api.Filters.ApiResponseWrapperFilter>();
+});
 
 builder.Services.AddSwaggerConfiguration();
 
@@ -72,7 +76,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Register global exception handling middleware
-app.UseExceptionHandling();
+app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 

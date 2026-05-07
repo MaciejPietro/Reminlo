@@ -21,9 +21,9 @@ public class AuthController(IMediator mediator) : ApiController(mediator)
     {
         var response = await _mediator.Send(request, cancellationToken);
 
-        if (!response.IsSuccess || response.Value?.token is null)
+        if (response.IsError || response.Value?.token is null)
         {
-            return Unauthorized(response.Error?.Message ?? "Invalid credentials.");
+            return Unauthorized(response.IsError ? response.FirstError.Description : "Invalid credentials.");
         }
 
 
@@ -58,11 +58,9 @@ public class AuthController(IMediator mediator) : ApiController(mediator)
     public async Task<IActionResult> ConfirmEmail([FromQuery] string userId, string token, CancellationToken cancellationToken)
     {
         ConfirmEmailCommand request = new(Guid.Parse(userId), token);
-        var result = await _mediator.Send(request, cancellationToken);
-        if (result.IsSuccess)
-            return Ok("Email has been confirmed successfully.");
+        var response = await _mediator.Send(request, cancellationToken);
 
-        return BadRequest(result.Error?.Message ?? "Email could not be confirmed.");
+        return Ok(response.Value);
     }
 
     /// <summary>
@@ -73,7 +71,7 @@ public class AuthController(IMediator mediator) : ApiController(mediator)
     public async Task<IActionResult> SendConfirmEmail(SendConfirmEmailCommand request, CancellationToken cancellationToken)
     {
         var response = await _mediator.Send(request, cancellationToken);
-        return Ok(response);
+        return Ok(response.Value);
     }
 
     /// <summary>
@@ -83,10 +81,8 @@ public class AuthController(IMediator mediator) : ApiController(mediator)
     [HttpPost("password/reset-request")]
     public async Task<IActionResult> SendResetPasswordEmail([FromBody] SendResetPasswordEmailCommand command)
     {
-        var result = await _mediator.Send(command);
-        return result.IsSuccess
-            ? Ok("Password reset email has been sent successfully.")
-            : BadRequest(result.Error?.Message);
+        var response = await _mediator.Send(command);
+        return Ok(response.Value);
     }
 
     /// <summary>
@@ -96,9 +92,7 @@ public class AuthController(IMediator mediator) : ApiController(mediator)
     [HttpPost("password/reset")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
     {
-        var result = await _mediator.Send(command);
-        return result.IsSuccess
-            ? Ok("Password has been reset successfully.")
-            : BadRequest(result.Error?.Message);
+        var response = await _mediator.Send(command);
+        return Ok(response.Value);
     }
 }

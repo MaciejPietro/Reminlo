@@ -1,6 +1,7 @@
 ﻿using Reminlo.Application.Features.Identity.Auth;
 using Reminlo.Application.Features.Identity.Users;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Reminlo.Api.Abstractions;
 
@@ -24,30 +25,23 @@ public sealed class UsersController : ApiController
     /// Creates a new user.
     /// </summary>
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> Create(CreateUserCommand request, CancellationToken cancellationToken)
     {
-        var response = await _mediator.Send(request, cancellationToken);
-        return CreatedAtAction(nameof(GetAll), response);
+        var result = await _mediator.Send(request, cancellationToken);
+
+        return Ok(result);
     }
-    
+
     /// <summary>
     /// Retrieves logged user.
     /// </summary>
     [HttpGet("me")]
     public async Task<IActionResult> GetMe(CancellationToken cancellationToken)
     {
-        var response = await _mediator.Send(new GetLoggedUserQuery(), cancellationToken);
-        return Ok(response);
-    }
-
-    /// <summary>
-    /// Retrieves all users.
-    /// </summary>
-    [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
-    {
-        var response = await _mediator.Send(new GetAllUserQuery(), cancellationToken);
-        return Ok(response);
+        var result = await _mediator.Send(new GetLoggedUserQuery(), cancellationToken);
+        
+        return Ok(result);
     }
 
     /// <summary>
@@ -57,8 +51,9 @@ public sealed class UsersController : ApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUserCommand request, CancellationToken cancellationToken)
     {
         var command = request with { Id = id };
-        var response = await _mediator.Send(command, cancellationToken);
-        return Ok(response);
+        var result = await _mediator.Send(command, cancellationToken);
+        
+        return Ok(result);
     }
 
     /// <summary>
@@ -67,19 +62,21 @@ public sealed class UsersController : ApiController
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var command = new DeleteByIdUserCommand(id);
-        await _mediator.Send(command, cancellationToken);
-        return NoContent();
+        var result = await _mediator.Send(new DeleteByIdUserCommand(id), cancellationToken);
+        
+        return Ok(result);
     }
 
     /// <summary>
     /// Assigns a role to a user.
     /// </summary>
     [HttpPost("{userId}/roles")]
+    [Authorize(Roles = "admin,developer")]
     public async Task<IActionResult> AssignRole(Guid userId, [FromBody] AssignRoleRequest request, CancellationToken cancellationToken)
     {
         var command = new AssignRoleToUserCommand(request.RoleId, userId);
-        var response = await _mediator.Send(command, cancellationToken);
-        return Ok(response);
+        var result = await _mediator.Send(command, cancellationToken);
+        
+        return Ok(result);
     }
 }

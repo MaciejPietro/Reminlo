@@ -1,13 +1,14 @@
+using System.ComponentModel.DataAnnotations;
 using Reminlo.Application.Services.Identity;
 using Reminlo.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using ResultKit;
+using ErrorOr;
 using Mapster;
 
 namespace Reminlo.Application.Features.Identity.Users;
 
-public sealed record GetLoggedUserQuery() : IRequest<Result<UserDto>>;
+public sealed record GetLoggedUserQuery() : IRequest<ErrorOr<UserDto>>;
 
 public class UserDto
 {
@@ -20,15 +21,15 @@ public class UserDto
 internal sealed class GetLoggedUserQueryHandler(
     IUserService userService,
     UserManager<ApplicationUser> userManager
-) : IRequestHandler<GetLoggedUserQuery, Result<UserDto>>
+) : IRequestHandler<GetLoggedUserQuery, ErrorOr<UserDto>>
 {
-    public async Task<Result<UserDto>> Handle(GetLoggedUserQuery request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<UserDto>> Handle(GetLoggedUserQuery request, CancellationToken cancellationToken)
     {
         var userResult = await userService.GetCurrentUserAsync();
 
-        if (!userResult.IsSuccess)
+        if (userResult.IsError)
         {
-            return Result<UserDto>.Failure(userResult.Error);
+            return userResult.Errors;
         }
 
         var user = userResult.Value;
@@ -37,6 +38,6 @@ internal sealed class GetLoggedUserQueryHandler(
         var userDto = user.Adapt<UserDto>();
         userDto.Roles = roles.ToList();
 
-        return Result<UserDto>.Success(userDto);
+        return userDto;
     }
 }

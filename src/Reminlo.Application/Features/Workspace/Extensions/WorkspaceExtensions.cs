@@ -12,7 +12,7 @@ internal static class WorkspaceExtensions
 
         var userMember = workspace.Members.FirstOrDefault(m => m.UserId == userId);
         var workspaceRole = workspace.OwnerId == userId
-            ? WorkspaceMemberRole.Admin
+            ? WorkspaceMemberRole.Owner
             : (userMember?.Role ?? WorkspaceMemberRole.Member);
         
         dto.Role = workspaceRole.ToString();

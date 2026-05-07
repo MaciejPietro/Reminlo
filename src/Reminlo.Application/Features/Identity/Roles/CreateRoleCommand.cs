@@ -3,14 +3,14 @@ using Reminlo.Domain.Entities.Identity;
 using Mapster;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Roles;
 
 /// <summary>
 /// Command to create a new role with the specified name.
 /// </summary>
-public sealed record CreateRoleCommand(string Name) : IRequest<Result<string>>;
+public sealed record CreateRoleCommand(string Name) : IRequest<ErrorOr<string>>;
 
 /// <summary>
 /// Handler that processes creating a new application role,
@@ -19,13 +19,13 @@ public sealed record CreateRoleCommand(string Name) : IRequest<Result<string>>;
 internal sealed class CreateRoleCommandHandler(
     RoleManager<ApplicationRole> roleManager,
     ICacheService cacheService
-    ) : IRequestHandler<CreateRoleCommand, Result<string>>
+    ) : IRequestHandler<CreateRoleCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(CreateRoleCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(CreateRoleCommand request, CancellationToken cancellationToken)
     {
         var isRoleExists = await roleManager.RoleExistsAsync(request.Name);
         if (isRoleExists)
-            return Result<string>.Failure(new Error("409", $"Role '{request.Name}' already exists."));
+            return Error.Conflict(description: $"Role '{request.Name}' already exists.");
 
         var role = request.Adapt<ApplicationRole>();
 

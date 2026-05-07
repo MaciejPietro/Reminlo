@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Reminlo.Api.Abstractions;
 using Reminlo.Application.Features.Identity.Users;
 using Reminlo.Application.Features.Workspace;
+using Reminlo.Domain.Common;
 
 namespace Reminlo.Api.Controllers;
 
@@ -20,35 +21,36 @@ public class WorkspacesController(IMediator mediator) : ApiController(mediator)
     {
         var response = await _mediator.Send(request, cancellationToken);
 
-        if (!response.IsSuccess)
-            return BadRequest(response);
-
-        return CreatedAtAction(nameof(CreateWorkspace), response);
+        return Ok(response);
     }
-    
+
     [HttpGet]
     public async Task<IActionResult> GetWorkspaces(GetWorkspacesQuery query, CancellationToken cancellationToken)
     {
         var response = await _mediator.Send(query, cancellationToken);
 
-        if (!response.IsSuccess)
-            return BadRequest(response);
-
         return Ok(response);
     }
     
-   
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetWorkspace(WorkspaceId id, [FromQuery] GetWorkspaceQuery query, CancellationToken cancellationToken)
+    {
+        var command = query with { Id = id };
+        
+        var response = await _mediator.Send(command, cancellationToken);
+
+        return Ok(response);
+    }
+
+
     [HttpPost("invitations")]
     public async Task<IActionResult> CreateInvitation([FromBody] CreateWorkspaceInvitationCommand request, CancellationToken cancellationToken)
     {
         var response = await _mediator.Send(request, cancellationToken);
-
-        if (!response.IsSuccess)
-            return BadRequest(response);
-
-        return CreatedAtAction(nameof(CreateInvitation), response);
+        
+        return Ok(response);
     }
-    
+
     /// <summary>
     /// Accept Workspace invitation.
     /// </summary>
@@ -57,12 +59,9 @@ public class WorkspacesController(IMediator mediator) : ApiController(mediator)
     {
         var response = await _mediator.Send(request, cancellationToken);
 
-        if (!response.IsSuccess)
-            return BadRequest(response);
-
-        return CreatedAtAction(nameof(AcceptInvitation), response);
+        return Ok(response);
     }
-    
+
     /// <summary>
     /// Rejects Workspace invitation.
     /// </summary>
@@ -71,10 +70,7 @@ public class WorkspacesController(IMediator mediator) : ApiController(mediator)
     {
         var response = await _mediator.Send(request, cancellationToken);
 
-        if (!response.IsSuccess)
-            return BadRequest(response);
-
-        return CreatedAtAction(nameof(AcceptInvitation), response);
+        return Ok(response);
     }
 
 }

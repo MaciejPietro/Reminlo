@@ -1,3 +1,3 @@
 namespace Reminlo.Domain.Enums;
 
-public enum WorkspaceMemberRole { Admin, Member }
+public enum WorkspaceMemberRole { Owner, Member }

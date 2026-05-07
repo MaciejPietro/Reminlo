@@ -2,7 +2,7 @@
 using Reminlo.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Auth;
 
@@ -12,7 +12,7 @@ namespace Reminlo.Application.Features.Identity.Auth;
 public sealed record AssignRoleToUserCommand(
     Guid RoleId,
     Guid UserId
-    ) : IRequest<Result<string>>;
+    ) : IRequest<ErrorOr<string>>;
 
 /// <summary>
 /// Handler that processes assigning a role to a user.
@@ -24,17 +24,17 @@ internal sealed class AssignRoleToUserCommandHandler(
     RoleManager<ApplicationRole> roleManager,
     UserManager<ApplicationUser> userManager,
     ICacheService cacheService
-    ) : IRequestHandler<AssignRoleToUserCommand, Result<string>>
+    ) : IRequestHandler<AssignRoleToUserCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(AssignRoleToUserCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(AssignRoleToUserCommand request, CancellationToken cancellationToken)
     {
         var role = await roleManager.FindByIdAsync(request.RoleId.ToString());
         if (role is null)
-            return Result<string>.Failure(new Error(ErrorCodes.NotFound, "Role not found."));
+            return Error.NotFound(description: "Role not found.");
 
         var user = await userManager.FindByIdAsync(request.UserId.ToString());
         if (user is null)
-            return Result<string>.Failure(new Error(ErrorCodes.NotFound, "User not found."));
+            return Error.NotFound(description: "User not found.");
 
         await userManager.AddToRoleAsync(user, role.Name!);
 

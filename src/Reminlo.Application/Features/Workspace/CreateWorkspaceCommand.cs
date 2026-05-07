@@ -12,13 +12,13 @@ using Reminlo.Application.Services.Workspace;
 using Reminlo.Domain.Entities.Identity;
 using Reminlo.Domain.Entities.Workspace;
 using RepositoryKit.Core.Interfaces;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Workspace;
 
 /// <summary>
 /// </summary>
-public sealed class CreateWorkspaceCommand : IRequest<Result<string>>
+public sealed class CreateWorkspaceCommand : IRequest<ErrorOr<string>>
 {
     public string Name { get; set; } = null!;
     public IEnumerable<string> Members { get; set; } = [];
@@ -35,28 +35,28 @@ internal sealed class CreateWorkspaceCommandHandler(
     IWorkspaceRepository workspaceRepository,
     IEmailQueueService emailQueueService,
     IUnitOfWork unitOfWork
-) : IRequestHandler<CreateWorkspaceCommand, Result<string>>
+) : IRequestHandler<CreateWorkspaceCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(CreateWorkspaceCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(CreateWorkspaceCommand request, CancellationToken cancellationToken)
     {
         var userResult = await userService.GetCurrentUserAsync();
         var user = userResult.Value;
 
-        if (!userResult.IsSuccess || user?.Id is null)
-            return Result<string>.Failure(new Error("401", "User is not authenticated."));
+        if (userResult.IsError || user?.Id is null)
+            return Error.Unauthorized(description: "User is not authenticated.");
 
         var workspace = Reminlo.Domain.Entities.Workspace.Workspace.Create(user.Id, request.Name);
-        
+
         ICollection<WorkspaceMember> members = [];
         ICollection<WorkspaceInvitation> invitations = [];
 
         foreach (var memberEmail in request.Members)
         {
             if (memberEmail == user.Email) continue;
-            
+
             var invitationToken =  invitationTokenService.GenerateToken();
             var invitation = WorkspaceInvitation.Create(workspace.Id, memberEmail, invitationToken);
-            
+
             invitations.Add(invitation);
             workspace.AddInvitation(invitation);
         }
@@ -65,8 +65,8 @@ internal sealed class CreateWorkspaceCommandHandler(
 
         await workspaceRepository.AddAsync(workspace, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        
-        
+
+
         foreach (var invitation in invitations)
         {
             emailQueueService.QueueInvitationEmail(invitation.Email, workspace.Name, invitation.Token);

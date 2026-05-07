@@ -4,14 +4,14 @@ using Reminlo.Application.Repositories;
 using Reminlo.Application.Services;
 using Reminlo.Domain.Entities;
 using RepositoryKit.Core.Interfaces;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.HangFire;
 
 /// <summary>
 /// Command to create a new Hangfire dashboard user with the specified username and password.
 /// </summary>
-public sealed class CreateUserRepositoryCommand : IRequest<Result<string>>
+public sealed class CreateUserRepositoryCommand : IRequest<ErrorOr<string>>
 {
     public string UserName { get; set; } = null!;
     public string Password { get; set; } = null!;
@@ -26,9 +26,9 @@ internal sealed class CreateHangfireDashboardUsersRepositoryCommandHandler(
     IHangFireUserRepository dashboardUsersRepository,
     IPasswordHasher hasher,
     IUnitOfWork unitOfWork
-    ) : IRequestHandler<CreateUserRepositoryCommand, Result<string>>
+    ) : IRequestHandler<CreateUserRepositoryCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(CreateUserRepositoryCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(CreateUserRepositoryCommand request, CancellationToken cancellationToken)
     {
         var hashedPassword = hasher.HashPassword(request.Password);
         var dashboardUser = request.Adapt<HangFireUser>();

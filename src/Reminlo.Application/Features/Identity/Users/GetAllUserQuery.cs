@@ -3,22 +3,22 @@ using Reminlo.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Users;
 
-public sealed record GetAllUserQuery() : IRequest<Result<List<ApplicationUser>>>;
+public sealed record GetAllUserQuery() : IRequest<ErrorOr<List<ApplicationUser>>>;
 
 internal sealed class GetAllUserQueryHandler(
     UserManager<ApplicationUser> userManager,
     ICacheService cacheService
-    ) : IRequestHandler<GetAllUserQuery, Result<List<ApplicationUser>>>
+    ) : IRequestHandler<GetAllUserQuery, ErrorOr<List<ApplicationUser>>>
 {
-    public async Task<Result<List<ApplicationUser>>> Handle(GetAllUserQuery request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<List<ApplicationUser>>> Handle(GetAllUserQuery request, CancellationToken cancellationToken)
     {
         var users = cacheService.Get<List<ApplicationUser>>("users");
 
-        if (users is null) { 
+        if (users is null) {
             users = await userManager.Users.ToListAsync(cancellationToken);
             cacheService.Set("users", users);
         }

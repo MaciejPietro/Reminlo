@@ -5,7 +5,7 @@ using Reminlo.Domain.Entities.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Infrastructure.Services.Identity;
 
@@ -16,12 +16,13 @@ internal sealed class UserService(
     UserManager<ApplicationUser> userManager,
     IEmailService emailService,
     IConfiguration configuration,
+    ICacheService cacheService,
     IHttpContextAccessor httpContextAccessor) : IUserService
 {
     /// <summary>
     /// Generates an email confirmation token for the specified user.
     /// </summary>
-    public async Task<Result<string>> GetConfirmEmailToken(ApplicationUser user)
+    public async Task<ErrorOr<string>> GetConfirmEmailToken(ApplicationUser user)
     {
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
         return token;
@@ -49,29 +50,41 @@ internal sealed class UserService(
     /// <summary>
     /// Gets the currently authenticated user from the HTTP context.
     /// </summary>
-    public async Task<Result<ApplicationUser>> GetCurrentUserAsync()
+    public async Task<ErrorOr<ApplicationUser>> GetCurrentUserAsync()
     {
         var userName = httpContextAccessor.HttpContext?.User?.Identity?.Name;
 
         if (string.IsNullOrEmpty(userName))
         {
-            return Result<ApplicationUser>.Failure(new Error(ErrorCodes.Unauthorized, "User is not authenticated"));
+            return Error.Unauthorized(description: "User is not authenticated");
         }
 
         var user = await userManager.FindByNameAsync(userName);
 
         if (user is null)
         {
-            return Result<ApplicationUser>.Failure(new Error(ErrorCodes.NotFound, "User not found"));
+            return Error.NotFound(description: "User not found");
         }
 
-        return Result<ApplicationUser>.Success(user);
+        return user;
     }
 
-    public Result<string> GetCurrentUserId()
+    public ErrorOr<string> GetCurrentUserId()
     {
         var userId = httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Anonymous";
 
-        return Result<string>.Success(userId);
+        return userId;
+    }
+
+    public bool HasCurrentUserRole(string role)
+    {
+        return (bool) httpContextAccessor.HttpContext?.User?.IsInRole(role);
+
+        // if (roles is null) return false;
+        //
+        // var hasRole = roles.Contains(role);
+        //
+        // return  hasRole ? true : false;
     }
 }
+

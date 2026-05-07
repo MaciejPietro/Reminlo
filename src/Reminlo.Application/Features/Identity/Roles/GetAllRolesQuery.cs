@@ -3,14 +3,14 @@ using Reminlo.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Roles;
 
 /// <summary>
 /// Query to retrieve all roles from the system.
 /// </summary>
-public sealed record GetAllRolesQuery() : IRequest<Result<List<ApplicationRole>>>;
+public sealed record GetAllRolesQuery() : IRequest<ErrorOr<List<ApplicationRole>>>;
 
 /// <summary>
 /// Handler that fetches all application roles, optionally using cached data,
@@ -19,9 +19,9 @@ public sealed record GetAllRolesQuery() : IRequest<Result<List<ApplicationRole>>
 internal sealed class GetAllRolesQueryHandler(
     RoleManager<ApplicationRole> roleManager,
     ICacheService cacheService
-    ) : IRequestHandler<GetAllRolesQuery, Result<List<ApplicationRole>>>
+    ) : IRequestHandler<GetAllRolesQuery, ErrorOr<List<ApplicationRole>>>
 {
-    public async Task<Result<List<ApplicationRole>>> Handle(GetAllRolesQuery request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<List<ApplicationRole>>> Handle(GetAllRolesQuery request, CancellationToken cancellationToken)
     {
         var roles = cacheService.Get<List<ApplicationRole>>("roles");
 

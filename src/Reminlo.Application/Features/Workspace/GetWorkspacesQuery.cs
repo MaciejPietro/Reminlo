@@ -13,18 +13,18 @@ using Reminlo.Application.Services.Workspace;
 using Reminlo.Domain.Entities.Identity;
 using Reminlo.Domain.Enums;
 using RepositoryKit.Core.Interfaces;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Workspace;
 
-public sealed record GetWorkspacesQuery() : IRequest<Result<List<WorkspaceListDto>>>;
+public sealed record GetWorkspacesQuery() : IRequest<ErrorOr<List<WorkspaceListDto>>>;
 
 internal sealed class GetWorkspacesQueryHandler(
     IWorkspaceRepository workspaceRepository,
     IUserService userService
-) : IRequestHandler<GetWorkspacesQuery, Result<List<WorkspaceListDto>>>
+) : IRequestHandler<GetWorkspacesQuery, ErrorOr<List<WorkspaceListDto>>>
 {
-    public async Task<Result<List<WorkspaceListDto>>> Handle(GetWorkspacesQuery request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<List<WorkspaceListDto>>> Handle(GetWorkspacesQuery request, CancellationToken cancellationToken)
     {
         var userResult = await userService.GetCurrentUserAsync();
 

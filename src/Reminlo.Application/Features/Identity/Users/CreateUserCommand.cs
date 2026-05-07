@@ -1,10 +1,11 @@
 ﻿using Reminlo.Application.Services;
+using Reminlo.Application.Services.Identity;
 using Reminlo.Domain.DomainEvents.Users;
 using Reminlo.Domain.Entities.Identity;
 using Mapster;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Users
 {
@@ -15,26 +16,39 @@ namespace Reminlo.Application.Features.Identity.Users
         string Email,
         string UserName,
         string Password
-    ) : IRequest<Result<string>>;
+    ) : IRequest<ErrorOr<string>>;
 
     internal sealed class CreateUserCommandHandler(
         UserManager<ApplicationUser> userManager,
         ICacheService cacheService,
-        IMediator mediator
-    ) : IRequestHandler<CreateUserCommand, Result<string>>
+        IMediator mediator,
+        IUserService userService
+    ) : IRequestHandler<CreateUserCommand, ErrorOr<string>>
     {
-        public async Task<Result<string>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
+        public async Task<ErrorOr<string>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
         {
+            var currentUserResult = await userService.GetCurrentUserAsync();
+            if (!currentUserResult.IsError)
+            {
+                var hasAdminRole = userService.HasCurrentUserRole("admin");
+                var hasDeveloperRole = userService.HasCurrentUserRole("developer");
+
+                if (!hasAdminRole || !hasDeveloperRole)
+                {
+                    return Error.Unauthorized(description: "Only admin or developer users can create accounts.");
+                }
+            }
+
             var existingUser = await userManager.FindByEmailAsync(request.Email);
             if (existingUser != null)
-                return Result<string>.ValidationFailure(new[] { new ValidationError("DuplicateEmail", "Email is already taken.") });
+                return Error.Validation(code: "DuplicateEmail", description: "Email is already taken.");
 
             var user = request.Adapt<ApplicationUser>();
 
             var result = await userManager.CreateAsync(user, request.Password);
 
             if (!result.Succeeded)
-                return Result<string>.ValidationFailure(result.Errors.Select(e => new ValidationError(e.Code, e.Description)));
+                return result.Errors.Select(e => Error.Validation(code: e.Code, description: e.Description)).ToList();
 
             await mediator.Publish(new UserCreatedEvent(user), cancellationToken);
 

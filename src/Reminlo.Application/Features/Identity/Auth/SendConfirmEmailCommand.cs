@@ -4,7 +4,7 @@ using Reminlo.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Auth;
 
@@ -13,7 +13,7 @@ namespace Reminlo.Application.Features.Identity.Auth;
 /// </summary>
 public sealed record SendConfirmEmailCommand(
     Guid UserId
-) : IRequest<Result<string>>;
+) : IRequest<ErrorOr<string>>;
 
 /// <summary>
 /// Handler that generates an email confirmation token and sends it via email to the user.
@@ -21,17 +21,17 @@ public sealed record SendConfirmEmailCommand(
 internal sealed class SendConfirmEmailCommandHandler(
     UserManager<ApplicationUser> userManager,
     IUserService userService
-) : IRequestHandler<SendConfirmEmailCommand, Result<string>>
+) : IRequestHandler<SendConfirmEmailCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(SendConfirmEmailCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(SendConfirmEmailCommand request, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(request.UserId.ToString());
 
         if (user is null)
-            return Result<string>.Failure(new Error(ErrorCodes.NotFound, "User not found."));
+            return Error.NotFound(description: "User not found.");
 
         if (user.Email is null)
-            return Result<string>.Failure(new Error(ErrorCodes.NotFound, "Email address not found."));
+            return Error.NotFound(description: "Email address not found.");
 
         var result = await userService.SendConfirmEmail(user);
 

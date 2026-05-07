@@ -1,9 +1,9 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Reminlo.Application.Repositories;
 using Reminlo.Domain.Entities.Workspace;
 using Reminlo.Infrastructure.Persistence;
 using RepositoryKit.EntityFramework.Implementations;
-using ResultKit;
 
 namespace Reminlo.Infrastructure.Repositories;
 
@@ -35,5 +35,13 @@ internal sealed class WorkspaceRepository
             query = query.Where(predicate);
 
         return await query.ToListAsync(cancellationToken);
+    }
+
+    public async Task<Workspace?> GetWithMembersAsync(Expression<Func<Workspace, bool>> predicate, CancellationToken cancellationToken = default)
+    {
+        return await _context.Workspaces
+            .Include(w => w.Members)
+            .ThenInclude(m => m.User)
+            .FirstOrDefaultAsync(predicate, cancellationToken);
     }
 }

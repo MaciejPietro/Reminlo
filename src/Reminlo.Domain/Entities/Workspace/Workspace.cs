@@ -45,4 +45,9 @@ public class Workspace : BaseEntity<WorkspaceId>
 
         return this;
     }
+
+    public bool HasMember(Guid userId)
+    {
+        return this.Members.Any(x => x.UserId == userId);
+    }
 }

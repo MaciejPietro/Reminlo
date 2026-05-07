@@ -3,7 +3,7 @@ using Reminlo.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Auth;
 
@@ -17,7 +17,7 @@ public sealed record LoginUserCommandResponse(string token);
 /// </summary>
 public sealed record LoginUserCommand(
     string EmailOrUserName,
-    string Password) : IRequest<Result<LoginUserCommandResponse>>;
+    string Password) : IRequest<ErrorOr<LoginUserCommandResponse>>;
 
 /// <summary>
 /// Handler that processes user login by verifying credentials,
@@ -26,18 +26,18 @@ public sealed record LoginUserCommand(
 internal sealed class LoginUserCommandHandler(
     UserManager<ApplicationUser> userManager,
     IJwtTokenService jwtTokenService
-    ) : IRequestHandler<LoginUserCommand, Result<LoginUserCommandResponse>>
+    ) : IRequestHandler<LoginUserCommand, ErrorOr<LoginUserCommandResponse>>
 {
-    public async Task<Result<LoginUserCommandResponse>> Handle(LoginUserCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<LoginUserCommandResponse>> Handle(LoginUserCommand request, CancellationToken cancellationToken)
     {
         var user = await userManager.Users.FirstOrDefaultAsync(p => p.Email == request.EmailOrUserName || p.UserName == request.EmailOrUserName);
         if (user == null || user.IsDeleted)
-            return Result<LoginUserCommandResponse>.Failure(new Error(ErrorCodes.NotFound, "User not found or has been deleted."));
+            return Error.NotFound(description: "User not found or has been deleted.");
 
         var result = await userManager.CheckPasswordAsync(user, request.Password);
 
         if (!result)
-            return Result<LoginUserCommandResponse>.Failure(new Error(ErrorCodes.Unauthorized, "Invalid password."));
+            return Error.Unauthorized(description: "Invalid email/login or password.");
 
         var roles = await userManager.GetRolesAsync(user);
         var token = jwtTokenService.GenerateToken(user.Id.ToString(), user.UserName ?? user.Email ?? "", user.Email ?? "", roles);

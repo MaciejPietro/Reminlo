@@ -2,7 +2,7 @@
 using Reminlo.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Roles;
 
@@ -10,7 +10,7 @@ namespace Reminlo.Application.Features.Identity.Roles;
 /// Command to delete a role by its unique identifier.
 /// </summary>
 public sealed record DeleteByIdRoleCommand(
-    Guid Id) : IRequest<Result<string>>;
+    Guid Id) : IRequest<ErrorOr<string>>;
 
 /// <summary>
 /// Handler that processes deleting a role from the system,
@@ -19,14 +19,14 @@ public sealed record DeleteByIdRoleCommand(
 internal sealed class DeleteByIdRoleCommandHandler(
     RoleManager<ApplicationRole> roleManager,
     ICacheService cacheService
-    ) : IRequestHandler<DeleteByIdRoleCommand, Result<string>>
+    ) : IRequestHandler<DeleteByIdRoleCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(DeleteByIdRoleCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(DeleteByIdRoleCommand request, CancellationToken cancellationToken)
     {
         var role = await roleManager.FindByIdAsync(request.Id.ToString());
 
         if (role is null)
-            return Result<string>.Failure(new Error(ErrorCodes.NotFound, "Role not found."));
+            return Error.NotFound(description: "Role not found.");
 
         await roleManager.DeleteAsync(role);
 

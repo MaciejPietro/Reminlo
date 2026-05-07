@@ -3,7 +3,7 @@ using Reminlo.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Auth;
 
@@ -11,7 +11,7 @@ namespace Reminlo.Application.Features.Identity.Auth;
 /// Command to request a password reset link for a user identified by email.
 /// </summary>
 public sealed record SendResetPasswordEmailCommand(
-    string Email) : IRequest<Result<string>>;
+    string Email) : IRequest<ErrorOr<string>>;
 
 /// <summary>
 /// Handler that generates a password reset token and sends it via email.
@@ -19,13 +19,13 @@ public sealed record SendResetPasswordEmailCommand(
 internal sealed class ResetPasswordRequestCommandHandler(
     UserManager<ApplicationUser> userManager,
     IEmailService emailService,
-    IConfiguration configuration) : IRequestHandler<SendResetPasswordEmailCommand, Result<string>>
+    IConfiguration configuration) : IRequestHandler<SendResetPasswordEmailCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(SendResetPasswordEmailCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(SendResetPasswordEmailCommand request, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user == null)
-            return Result<string>.Failure(new Error(ErrorCodes.NotFound, "User not found."));
+            return Error.NotFound(description: "User not found.");
 
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
 

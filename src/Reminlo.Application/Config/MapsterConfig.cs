@@ -12,5 +12,10 @@ public static class MapsterConfig
             .NewConfig()
             .Ignore(dto => dto.Role)
             .Ignore(dto => dto.MembersCount);
+
+        TypeAdapterConfig<WorkspaceMember, WorkspaceMemberDto>
+            .NewConfig()
+            .Map(dto => dto.UserName, src => src.User.UserName)
+            .Map(dto => dto.Email, src => src.User.Email);
     }
 }

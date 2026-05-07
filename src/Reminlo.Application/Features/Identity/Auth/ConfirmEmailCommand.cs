@@ -1,7 +1,7 @@
 ﻿using Reminlo.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Auth;
 
@@ -11,7 +11,7 @@ namespace Reminlo.Application.Features.Identity.Auth;
 public sealed record ConfirmEmailCommand(
     Guid UserId,
     string Token
-    ) : IRequest<Result<Unit>>;
+    ) : IRequest<ErrorOr<Unit>>;
 
 /// <summary>
 /// Handler that processes the confirmation of a user's email.
@@ -20,18 +20,18 @@ public sealed record ConfirmEmailCommand(
 /// </summary>
 internal sealed class ConfirmEmailCommandHandler(
     UserManager<ApplicationUser> userManager
-) : IRequestHandler<ConfirmEmailCommand, Result<Unit>>
+) : IRequestHandler<ConfirmEmailCommand, ErrorOr<Unit>>
 {
-    public async Task<Result<Unit>> Handle(ConfirmEmailCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<Unit>> Handle(ConfirmEmailCommand request, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(request.UserId.ToString());
         if (user == null)
-            return Result<Unit>.Failure(new Error(ErrorCodes.NotFound, "User not found."));
+            return Error.NotFound(description: "User not found.");
 
         var result = await userManager.ConfirmEmailAsync(user, request.Token);
         if (!result.Succeeded)
-            return Result<Unit>.Failure(new Error(ErrorCodes.Conflict, "Email could not be confirmed. The token may be invalid or expired."));
+            return Error.Conflict(description: "Email could not be confirmed. The token may be invalid or expired.");
 
-        return Result<Unit>.Success(Unit.Value);
+        return Unit.Value;
     }
 }

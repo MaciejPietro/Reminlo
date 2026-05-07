@@ -1,5 +1,5 @@
 ﻿using Reminlo.Domain.Entities.Identity;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Services.Identity
 {
@@ -8,10 +8,12 @@ namespace Reminlo.Application.Services.Identity
     /// </summary>
     public interface IUserService
     {
-        Task<Result<string>> GetConfirmEmailToken(ApplicationUser user);
+        Task<ErrorOr<string>> GetConfirmEmailToken(ApplicationUser user);
         Task<string> SendConfirmEmail(ApplicationUser user);
-        Task<Result<ApplicationUser>> GetCurrentUserAsync();
-        
-        Result<string> GetCurrentUserId();
+        Task<ErrorOr<ApplicationUser>> GetCurrentUserAsync();
+
+        ErrorOr<string> GetCurrentUserId();
+
+        bool HasCurrentUserRole(string role);
     }
 }

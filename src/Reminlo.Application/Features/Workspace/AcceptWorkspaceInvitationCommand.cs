@@ -13,13 +13,13 @@ using Reminlo.Domain.Entities.Identity;
 using Reminlo.Domain.Entities.Workspace;
 using Reminlo.Domain.Enums;
 using RepositoryKit.Core.Interfaces;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Workspace;
 
 /// <summary>
 /// </summary>
-public sealed class AcceptWorkspaceInvitationCommand : IRequest<Result<string>>
+public sealed class AcceptWorkspaceInvitationCommand : IRequest<ErrorOr<string>>
 {
     public string Token { get; set; } = null!;
     public string Email { get; set; } = null!;
@@ -32,27 +32,30 @@ internal sealed class AcceptWorkspaceInvitationCommandHandler(
     IInvitationTokenService invitationTokenService,
     IWorkspaceRepository workspaceRepository,
     IUnitOfWork unitOfWork
-) : IRequestHandler<AcceptWorkspaceInvitationCommand, Result<string>>
+) : IRequestHandler<AcceptWorkspaceInvitationCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(AcceptWorkspaceInvitationCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(AcceptWorkspaceInvitationCommand request, CancellationToken cancellationToken)
     {
-        var genericFailure = Result<string>.ValidationFailure([
-            new ValidationError("Token", "Something went wrong.")
-        ]);
-        
+        var genericFailure = Error.Validation(code: "Token", description: "Something went wrong.");
+
         var invitation = await workspaceRepository.GetInvitationAsync(request.Token);
         var existingUser = await userManager.FindByEmailAsync(request.Email);
 
         var isEmailValid = invitation.Email == request.Email;
         var isTokenValid = invitationTokenService.ValidateToken(request.Token, invitation);
-        
-        if (!isEmailValid || !isTokenValid || existingUser is null)
+
+        if (existingUser is null)
+        {
+            return Error.Validation(code: "User", description: "User not found.");
+        }
+
+        if (!isEmailValid || !isTokenValid)
         {
             return genericFailure;
         }
-        
+
         invitation.SetStatus(InvitationStatus.Accepted);
-        
+
 
         var member = WorkspaceMember.Create(existingUser.Id, invitation.WorkspaceId);
 
@@ -62,9 +65,9 @@ internal sealed class AcceptWorkspaceInvitationCommandHandler(
         {
             return genericFailure;
         }
-        
+
         workspace.AddMember(member);
-       
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return "Workspace invitation was accepted.";

@@ -13,13 +13,13 @@ using Reminlo.Domain.Entities.Identity;
 using Reminlo.Domain.Entities.Workspace;
 using Reminlo.Domain.Enums;
 using RepositoryKit.Core.Interfaces;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Workspace;
 
 /// <summary>
 /// </summary>
-public sealed class RejectWorkspaceInvitationCommand : IRequest<Result<string>>
+public sealed class RejectWorkspaceInvitationCommand : IRequest<ErrorOr<string>>
 {
     public string Token { get; set; } = null!;
     public string Email { get; set; } = null!;
@@ -32,14 +32,12 @@ internal sealed class RejectWorkspaceInvitationCommandHandler(
     IInvitationTokenService invitationTokenService,
     IWorkspaceRepository workspaceRepository,
     IUnitOfWork unitOfWork
-) : IRequestHandler<RejectWorkspaceInvitationCommand, Result<string>>
+) : IRequestHandler<RejectWorkspaceInvitationCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(RejectWorkspaceInvitationCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(RejectWorkspaceInvitationCommand request, CancellationToken cancellationToken)
     {
-        var genericFailure = Result<string>.ValidationFailure([
-            new ValidationError("Failure", "Something went wrong.")
-        ]);
-        
+        var genericFailure = Error.Validation(code: "Failure", description: "Something went wrong.");
+
         var invitation = await workspaceRepository.GetInvitationAsync(request.Token);
         var existingUser = await userManager.FindByEmailAsync(request.Email);
 
@@ -52,7 +50,7 @@ internal sealed class RejectWorkspaceInvitationCommandHandler(
         }
 
         invitation.SetStatus(InvitationStatus.Rejected);
-        
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return "Workspace invitation was rejected.";

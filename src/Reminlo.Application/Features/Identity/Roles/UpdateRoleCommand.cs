@@ -3,7 +3,7 @@ using Reminlo.Domain.Entities.Identity;
 using Mapster;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using ResultKit;
+using ErrorOr;
 
 namespace Reminlo.Application.Features.Identity.Roles;
 
@@ -13,7 +13,7 @@ namespace Reminlo.Application.Features.Identity.Roles;
 public sealed record UpdateRoleCommand(
     Guid Id,
     string Name
-) : IRequest<Result<string>>;
+) : IRequest<ErrorOr<string>>;
 
 /// <summary>
 /// Handler that updates an existing application role,
@@ -22,14 +22,14 @@ public sealed record UpdateRoleCommand(
 internal sealed class UpdateRoleCommandHandler(
     RoleManager<ApplicationRole> roleManager,
     ICacheService cacheService
-) : IRequestHandler<UpdateRoleCommand, Result<string>>
+) : IRequestHandler<UpdateRoleCommand, ErrorOr<string>>
 {
-    public async Task<Result<string>> Handle(UpdateRoleCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(UpdateRoleCommand request, CancellationToken cancellationToken)
     {
         var role = await roleManager.FindByIdAsync(request.Id.ToString());
 
         if (role is null)
-            return Result<string>.Failure(new Error(ErrorCodes.NotFound, "Role not found."));
+            return Error.NotFound(description: "Role not found.");
 
         request.Adapt(role);
 
