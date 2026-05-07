@@ -17,14 +17,34 @@
 
 ## 📦 What is Reminlo?
 
-**Reminlo** is a simple reminder app, build as .NET application development using Clean Architecture and modular principles.
+A self-hosted family coordination tool. Create a workspace, invite your family, and stop forgetting the things that matter.
 
-It features CQRS, MediatR, authentication (JWT), background jobs (Hangfire), HealthChecks, Audit Logging, ResultKit, RepositoryKit, and more.  
-Designed as scalable, maintainable, and testable enterprise solution.
+## What it does
+
+**Recurring reminders** — define obligations that repeat on a schedule: car service every 2 years, annual medical tests, insurance renewals, home system checks. Set how many days before you want an email reminder. When it is due, convert the template into a real event with one click.
+
+**Family calendar** — create events with a title, time, location, and optional reminder. Events can be private (only you see them) or shared with the whole workspace. Assign events to specific family members to control who gets notified.
+
+## Why it exists
+
+Too many recurring things to track: 2 kids, 2 cars, 2 pets, insurance policies, medical tests, house systems. Google Calendar handles single events fine but offers no structured way to manage obligations that repeat every 1–3 years with advance reminders.
+
+## Current scope
+
+- User registration and workspace management
+- Recurring pattern templates with email reminders
+- Workspace calendar with per-event privacy and notification settings
+- Email delivery via SendGrid
+
+**Not yet implemented:** conflict detection, SMS/push notifications, recurring calendar events, event proposals, gamification.
+
+## Status
+
+Early development. Built as a pet project, open to contributions.
 
 ---
 
-## 🧰 Technologies Used
+# 🧰 Technical aspects
 
 | Technology            | Purpose                      |
 | --------------------- | ---------------------------- |
