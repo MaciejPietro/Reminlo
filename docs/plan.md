@@ -2,28 +2,49 @@
 
 ## Overview
 
-Two iterations, focused on the most impactful problems first: remembering recurring obligations, then scheduling concrete events on a calendar. Gamification, conflict detection, SMS/push notifications, and AI features are explicitly out of scope.
+Two iterations, focused on the most impactful problems first: remembering recurring obligations, then scheduling concrete events on a calendar. 
+Gamification, conflict detection, SMS/push notifications, and AI features are explicitly out of scope.
 
 ---
 
-## Iteration 1 — Recurring Pattern Templates
+## Iteration 1 — Recurring Obligations
 
-Goal: users define recurring life obligations (insurance renewal, car service, medical tests) and get email reminders before the due date. No calendar entry is created automatically — the user converts a pattern to an event manually when ready.
+Goal: users define recurring life obligations (insurance renewal, car service, medical tests) and optionally set up email reminders before the due date.
+No calendar entry is created automatically — the user converts an obligation to an event manually when ready.
 
 ### Tasks
 
-1. Create `recurring_patterns` table with fields: `id`, `workspace_id`, `user_id`, `title`, `description`, `location`, `frequency`, `reminder_days`, `reminder_type`, `next_due_date`, `last_triggered_at`, `is_active`
-2. Define frequency enum: `weekly`, `monthly`, `yearly`, `every_2_years`, `every_3_years`
-3. Build CRUD endpoints: `POST`, `GET`, `PUT`, `DELETE` on `/api/workspaces/:workspace_id/patterns`
-4. Build `GET /patterns/due-soon` endpoint (next 7 days)
-5. Implement `next_due_date` calculation on create based on frequency
-6. Implement `POST /patterns/:pattern_id/create-event` — converts pattern to an event, updates `next_due_date` and `last_triggered_at`
-7. Frontend: patterns list page, create/edit dialog, detail page with "Create event" CTA
-8. Frontend: "Due soon" tab on patterns list (badge on navigation)
+1. Create `obligation_categories` table with fields: `id`, `name` (unique), `created_at`, `updated_at` — super admin only CRUD
+2. Create `obligations` table with fields: `id`, `workspace_id`, `created_by` (FK to workspace_members), `category_id`, `title`, `description`, `frequency` (nullable), `priority`, `next_due_date`, `end_date`, `visible_to` (array of workspace_member IDs), `is_active`
+3. Create `obligation_reminders` table with fields: `id`, `obligation_id`, `reminder_days`, `reminder_type`, `is_active`
+4. Add access control:
+   - Only creator or workspace owner can update/delete obligations
+   - Super admin can manage categories
+   - Respect visibility rules: visible_to (NULL=all, []=creator+owner, [ids]=creator+owner+members)
+5. Build CRUD endpoints:
+   - `/api/obligation-categories` (super admin only)
+   - `/api/workspaces/:workspace_id/obligations` with query filters (category_id, priority, start_date, end_date, status)
+6. Build reminder CRUD: `/api/workspaces/:workspace_id/obligations/:obligation_id/reminders`
+7. Implement `next_due_date` calculation:
+   - For `frequency=null`: use user-provided date
+   - For recurring: calculate `now + frequency` (weekly=+7 days, monthly=+30 days, yearly=+365 days)
+8. Implement `POST /obligations/:obligation_id/create-event` — converts obligation to event, updates `next_due_date` 
+9. Build cron job: every 30 minutes, check obligation_reminders where `next_due_date - reminder_days <= NOW()` and `is_active=true` and workspace is not frozen, send email
+10. Workspace freeze logic: if workspace owner leaves (OwnerId becomes null), block all read/create/update/delete operations on that workspace's obligations
+11. Frontend: obligations list with filters (category, priority, date range, status), create/edit dialog with category + visibility + priority, detail page with "Create event" CTA
+12. Frontend: "Due soon" section showing obligations due within 7 days, respecting visibility rules
 
 ### Definition of done
 
-A user can create "Car service every 2 years, remind 14 days before", come back 2 years later, see a reminder in their inbox and a "Due soon" badge, click "Create event", pick a date/time, confirm — and the event appears on the calendar.
+A user can:
+1. Create "Car service on Nov 12, 2026" in the Car category with priority High, reminder 1 week before, visible to family members only
+2. Receive a reminder email on Nov 5
+3. See it in "Due soon" with a badge
+4. Filter obligations by category (Car), priority (High), and date range
+5. Click "Create event", pick a date/time, confirm — event appears on calendar
+6. Another family member with visibility access can see the obligation
+7. Workspace owner can view/edit/delete any obligation, change visibility/priority
+8. Super admin can manage obligation categories globally
 
 ---
 
@@ -33,8 +54,8 @@ Goal: users create concrete time-bound events that appear on a shared workspace 
 
 ### Tasks
 
-1. Create `events` table: `id`, `workspace_id`, `user_id`, `title`, `description`, `location`, `start_time`, `end_time`, `is_private`, `assigned_to` (jsonb), `notifications_enabled`, `created_from_pattern_id`
-2. Create `event_notifications` table: `id`, `event_id`, `user_id`, `notification_type`, `scheduled_for_datetime`, `sent_at`, `created_from_pattern`
+1. Create `events` table: `id`, `workspace_id`, `user_id`, `title`, `description`, `location`, `start_time`, `end_time`, `is_private`, `assigned_to` (jsonb), `notifications_enabled`, `created_from_obligation_id`
+2. Create `event_notifications` table: `id`, `event_id`, `user_id`, `notification_type`, `scheduled_for_datetime`, `sent_at`, `created_from_obligation`
 3. Build CRUD endpoints: `POST`, `GET`, `PUT`, `DELETE` on `/api/workspaces/:workspace_id/events`
 4. On event create/update: auto-create `event_notifications` rows if `notifications_enabled`
 5. Build cron job: every 30 minutes, select pending notifications where `scheduled_for_datetime <= NOW()`, send email via SendGrid, mark `sent_at`
@@ -50,9 +71,9 @@ A user can create "Mother's birthday Dec 25, remind 3 days before", see it on th
 
 ## After Both Iterations — What Unlocks Next
 
-- Recurring events directly on the calendar (weekly tennis) — requires `rrule.js` integration
+- Recurring events directly on the calendar (weekly tennis) — requires `rrule.js` integration in obligations
 - Multi-person event proposals and acceptance workflow
 - Conflict detection across family members
-- Push notifications via Firebase
-- SMS reminders via Twilio
+- Push notifications via Firebase (in addition to email)
+- SMS reminders via Twilio (in addition to email)
 - Gamification (points, leaderboards)

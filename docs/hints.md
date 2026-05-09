@@ -9,13 +9,36 @@ Architecture reminders and gotchas to keep in mind across both iterations to avo
 **Always scope every query by `workspace_id`.**
 Every endpoint receives a `workspace_id` from the URL. Always include `WHERE workspace_id = :workspace_id` in every query — never trust the request body for this. Middleware should verify the current user is a member of that workspace before any handler runs.
 
-**Private events need two checks.**
-When listing events, filter like this:
+**Check workspace freeze status before any operation.**
+If a workspace's `OwnerId IS NULL`, the workspace is frozen. Return 403 Forbidden for any read/create/update/delete operations on that workspace's obligations. Display a message: "This workspace is inactive. Contact support."
+
+**Obligation visibility filtering.**
+When listing obligations, filter like this:
 ```sql
 WHERE workspace_id = :workspace_id
-  AND (is_private = false OR user_id = :current_user_id)
+  AND (
+    visible_to IS NULL  -- visible to all
+    OR created_by = :current_workspace_member_id  -- creator always sees their own
+    OR :current_user_id = (SELECT owner_id FROM workspaces WHERE id = workspace_id)  -- workspace owner sees all
+    OR :current_workspace_member_id = ANY(visible_to)  -- listed in visible_to
+  )
 ```
-Both conditions matter. Do not leak private events to other workspace members under any circumstance.
+All four conditions matter. Compare `created_by` and `visible_to` against the CURRENT USER'S `workspace_member(id)`, not their user ID. Workspace owner always sees everything regardless of visibility. Do not leak obligations to workspace members who shouldn't see them.
+
+**Obligation `created_by` and `visible_to` reference WorkspaceMember.**
+Both fields use `workspace_member(id)`, not `user(id)`. This enforces that:
+- Creator must be an active workspace member at creation time
+- Only active workspace members can be in `visible_to` arrays
+
+When updating `visible_to` array, validate that all member IDs are:
+1. Active members of the same workspace
+2. In Active status (not Removed/Inactive)
+Reject the request if any ID is invalid.
+
+On workspace member removal, run cleanup to remove that member from all `visible_to` arrays in that workspace. Use `ON DELETE RESTRICT` for `created_by` to prevent deleting a member if they created obligations (or soft-delete the obligation instead).
+
+**Obligations require workspace owner for updates.**
+Only `created_by` user OR workspace owner can update/delete obligations. Other workspace members get 403 Forbidden. Categories are global and require super admin.
 
 **Notifications only go to workspace members.**
 Before creating `event_notifications` rows, validate that every user in `assigned_to` is an active member of the workspace. If someone is removed from a workspace, their pending notifications should be cancelled or ignored.
@@ -24,17 +47,32 @@ Before creating `event_notifications` rows, validate that every user in `assigne
 
 ## Data Integrity
 
+**Obligation reminders are separate and optional.**
+An obligation can exist without any reminders. Reminders are stored in a separate `obligation_reminders` table with a foreign key to `obligations`. Allow users to add, update, or delete reminders independently of the obligation. Validate `reminder_days` is not negative and `is_active` determines whether reminders are processed by the cron job.
+
+**Obligation categories are global and immutable after creation.**
+Categories are not scoped to workspaces — they're application-wide. Only super admins can create/edit/delete. Once a category is created, users reference it by `category_id`. Do NOT allow renaming or deletion if obligations exist with that category (soft-delete/archive the category instead). This prevents data inconsistency across workspaces.
+
+**`visible_to` is a UUID array of WorkspaceMember IDs.**
+Like `assigned_to` in events, this is stored as a UUID[] array. While `created_by` has a foreign key constraint, `visible_to` does NOT (it's an array). Validate at the application layer:
+1. On obligation creation: check all member IDs exist, are active, and belong to the same workspace
+2. On obligation update: re-validate the new array
+3. On member removal: run cleanup to remove them from all `visible_to` arrays in their workspace
+4. On workspace deletion: cascade delete all obligations
+
+Future: consider migrating to a join table if obligations need member roles (organizer, viewer, etc.)
+
 **`assigned_to` is a JSONB array, not a foreign key.**
 This means the database will not enforce membership. Validate at the application layer on create and on update. When a user leaves a workspace, run a cleanup to remove their ID from any `assigned_to` arrays in that workspace's events.
 
-**`created_from_pattern_id` uses `ON DELETE SET NULL`.**
-If a pattern is deleted, events created from it keep their data — only the link is broken. This is intentional: events are independent records after creation.
+**`created_from_obligation_id` uses `ON DELETE SET NULL`.**
+If an obligation is deleted, events created from it keep their data — only the link is broken. This is intentional: events are independent records after creation.
 
-**Soft delete patterns, hard delete events.**
-Patterns use `is_active = false` (soft delete) because `next_due_date` history is useful for the future. Events can be hard deleted since they cascade to `event_notifications`.
+**Soft delete obligations, hard delete events.**
+Obligations use `is_active = false` (soft delete) because `next_due_date` history is useful for the future. Events can be hard deleted since they cascade to `event_notifications`.
 
 **`next_due_date` must be updated atomically with event creation.**
-When a user converts a pattern to an event, update `pattern.next_due_date` and `pattern.last_triggered_at` in the same database transaction as the event insert. If the transaction fails, roll everything back.
+When a user converts an obligation to an event, update `obligation.next_due_date` in the same database transaction as the event insert. If the transaction fails, roll everything back.
 
 ---
 
@@ -53,12 +91,26 @@ Never mark a notification as sent before the email provider confirms delivery. A
 
 ## Schema Future-Proofing
 
-**`frequency` will need to expand.**
-`every_2_years` as a string enum works now. When you add recurring *events* (weekly tennis), you will need `rrule` support. Design the `recurring_patterns.frequency` field to be easily migratable — consider storing an `rrule_string` column alongside the current enum from day one (nullable). No logic needed now, just reserve the column.
+**`frequency` determines obligation type.**
+`frequency` can be NULL (one-time), `weekly`, `monthly`, `yearly`, or `custom`.
+- NULL: user-specified deadline, no recurrence
+- `weekly`: recurs every 7 days
+- `monthly`: recurs every 30 days (or use day-of-month logic if needed later)
+- `yearly`: recurs every 365 days
+- `custom`: reserved for future `rrule` support
+
+When you add recurring *events* (weekly tennis), you will need `rrule` support. Design to be migratable — consider adding an `rrule_string` column (nullable) from day one. No logic needed now, just reserve it.
+
+**`next_due_date` has different meanings:**
+For one-time obligations (frequency=NULL), it's the deadline (user-specified). For recurring obligations, it's the next occurrence (calculated from now + frequency interval). Always store in UTC; display in user's timezone on frontend.
 
 **`notification_type` should be an enum or constrained.**
-Currently only `email` is supported. Add a check constraint now:
+Currently only `email` is supported for both obligation reminders and event notifications. Add check constraints now on both tables:
 ```sql
+-- On obligation_reminders table
+CHECK (reminder_type IN ('email', 'in_app', 'sms', 'push'))
+
+-- On event_notifications table
 CHECK (notification_type IN ('email', 'in_app', 'sms', 'push'))
 ```
 This prevents invalid data and documents the intended future values.

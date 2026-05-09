@@ -8,6 +8,34 @@ namespace Reminlo.Domain.Common;
 
 public interface IGuid {}
 
+
+[StronglyTypedId]
+public partial struct ObligationReminderId : IGuid
+{
+    public static implicit operator ObligationReminderId(Guid guid)
+    {
+        return new ObligationReminderId(guid);
+    }
+}
+
+[StronglyTypedId]
+public partial struct ObligationId : IGuid
+{
+    public static implicit operator ObligationId(Guid guid)
+    {
+        return new ObligationId(guid);
+    }
+}
+
+[StronglyTypedId]
+public partial struct ObligationCategoryId : IGuid
+{
+    public static implicit operator ObligationCategoryId(Guid guid)
+    {
+        return new ObligationCategoryId(guid);
+    }
+}
+
 [StronglyTypedId]
 public partial struct WorkspaceId : IGuid
 {

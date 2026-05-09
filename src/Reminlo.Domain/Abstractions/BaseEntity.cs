@@ -11,3 +11,5 @@ public abstract class BaseEntity<TKey>
     /// </summary>
     public TKey Id { get; set; } = default!;
 }
+
+

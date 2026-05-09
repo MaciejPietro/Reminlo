@@ -11,10 +11,20 @@ The system is a workspace-based family coordination tool. Users register, create
 ### Workspace
 A shared space for a family or group. All recurring patterns and events belong to a workspace. Only workspace members can access its data. A user can belong to multiple workspaces.
 
-### Recurring Pattern
-A template representing an obligation that repeats on a schedule — insurance renewal, car service, medical tests. Patterns do not appear on the calendar. They exist to remind users when something is due and provide a one-click way to create a real event when the time comes.
+### Obligation
+A life obligation that can be one-time (e.g., "car service on Nov 12") or recurring (e.g., "annual medical check-up"). Belongs to a category (e.g., "Car", "Health", "Family"). Can have visibility restrictions. Obligations do not appear on the calendar. They exist as templates for creating real events when the time comes. An obligation can exist without reminders.
 
-**Fields:** title, description, location, frequency, reminder_days, next_due_date, last_triggered_at
+**Fields:** id, workspace_id, created_by (WorkspaceMember), category_id, title, description, frequency (null/weekly/monthly/yearly/custom), priority (low/medium/high/crucial), next_due_date, end_date, visible_to (array of WorkspaceMember IDs), is_active
+
+### Obligation Category
+A global taxonomy for organizing obligations. Examples: Home, Health, Car, Family, Birthday, Anniversary. Only super admins can create/edit/delete categories.
+
+**Fields:** id, name (unique), created_at, updated_at
+
+### Obligation Reminder
+A scheduled reminder tied to a specific obligation. Multiple reminders can be attached to one obligation, each with different timing. Reminders are optional — an obligation can exist without any reminders.
+
+**Fields:** id, obligation_id, reminder_days, reminder_type, is_active
 
 ### Event
 A concrete, time-bound item on the calendar. Created either from scratch or by converting a recurring pattern. Events have a start time, end time, privacy setting, assignees, and optional email reminders.
@@ -28,22 +38,23 @@ A scheduled email reminder tied to a specific event. Created automatically when 
 
 ## Data Flow
 
-### Iteration 1 — Recurring Patterns
+### Iteration 1 — Recurring Obligations
 
 ```
-User creates pattern
-  → Backend calculates next_due_date from frequency
-  → Pattern stored, dormant
+User creates obligation
+  → Backend calculates next_due_date from frequency + interval
+  → Obligation stored, dormant
+  → User can optionally add one or more reminders
 
 Cron / dashboard load
-  → App shows "Due soon" badge for patterns where next_due_date ≤ now + 7 days
+  → App shows "Due soon" badge for obligations where next_due_date ≤ now + 7 days
+  → Reminders are processed: send emails to users with reminders configured
 
 User clicks "Create event"
-  → Dialog opens pre-filled from pattern
+  → Dialog opens pre-filled from obligation
   → User confirms date/time
   → Backend creates Event + EventNotification rows
-  → Pattern.next_due_date advances by frequency
-  → Pattern.last_triggered_at = NOW()
+  → Obligation.next_due_date advances by frequency + interval
 ```
 
 ### Iteration 2 — Events
@@ -70,9 +81,10 @@ User opens calendar
 All routes are prefixed with `/api` and require authentication.
 
 ```
-/workspaces/:workspace_id/patterns       CRUD for recurring patterns
-/workspaces/:workspace_id/patterns/due-soon     Due within 7 days
-/workspaces/:workspace_id/patterns/:id/create-event  Convert to event
+/workspaces/:workspace_id/obligations              CRUD for obligations
+/workspaces/:workspace_id/obligations/due-soon     Due within 7 days
+/workspaces/:workspace_id/obligations/:id/reminders  CRUD for reminders on an obligation
+/workspaces/:workspace_id/obligations/:id/create-event  Convert to event
 
 /workspaces/:workspace_id/events         CRUD for events
 /workspaces/:workspace_id/notifications  List pending notifications for current user
@@ -85,7 +97,8 @@ All routes are prefixed with `/api` and require authentication.
 | Layer | Implementation |
 |-------|----------------|
 | Email delivery | SendGrid (transactional) |
-| Scheduling | `event_notifications` table with `scheduled_for_datetime` |
+| Obligation reminders | `obligation_reminders` table with `reminder_days` before next_due_date |
+| Event notifications | `event_notifications` table with `scheduled_for_datetime` |
 | Processing | Cron job every 30 minutes |
 | Status tracking | `sent_at` timestamp (null = pending) |
 
