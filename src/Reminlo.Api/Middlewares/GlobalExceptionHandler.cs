@@ -39,11 +39,22 @@ internal sealed class GlobalExceptionHandler(
             }
         };
 
-        // In development, add stack trace
+        // In development, add stack trace and inner exception
         if (ShouldIncludeStackTrace())
         {
             problemDetails.Extensions["stackTrace"] = exception.StackTrace;
             problemDetails.Extensions["exceptionType"] = exception.GetType().Name;
+
+            // Include inner exception details
+            if (exception.InnerException != null)
+            {
+                problemDetails.Extensions["innerException"] = new
+                {
+                    type = exception.InnerException.GetType().Name,
+                    message = exception.InnerException.Message,
+                    stackTrace = exception.InnerException.StackTrace
+                };
+            }
         }
 
         httpContext.Response.StatusCode = statusCode;
@@ -118,7 +129,7 @@ internal sealed class GlobalExceptionHandler(
                 (StatusCodes.Status500InternalServerError,
                     "Database.Error",
                     "A database error occurred.",
-                    false),
+                    ShouldIncludeStackTrace()), // Show details in development
 
             // All other exceptions - 500 Internal Server Error
             _ =>

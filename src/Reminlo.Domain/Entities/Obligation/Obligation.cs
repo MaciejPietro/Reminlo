@@ -67,7 +67,7 @@ public class Obligation : ScopedEntity<ObligationId, WorkspaceId>
     /// <param name="name">The name or title of the obligation.</param>
     /// <param name="startDate">The date of the first occurrence of the obligation.</param>
     /// <param name="description">Additional details about the obligation. Defaults to empty string.</param>
-    /// <param name="frequency">The interval type for recurrence (Daily, Weekly, etc.). Null indicates a one-time obligation.</param>
+    /// <param name="frequencyInterval">The interval type for recurrence (Daily, Weekly, etc.). Null indicates a one-time obligation. Use ObligationFrequency enum.</param>
     /// <param name="frequencyValue">The numeric value for the frequency interval. Requires frequency to be set.</param>
     /// <param name="endDate">The expiration date after which the obligation becomes inactive. Optional.</param>
     /// <param name="visibleTo">Collection of workspace member IDs who can view this obligation. Null means all members can see it.</param>
@@ -78,8 +78,8 @@ public class Obligation : ScopedEntity<ObligationId, WorkspaceId>
         ObligationCategoryId categoryId,
         string name,
         DateTime startDate,
-        string description = "",
-        ObligationFrequency? frequency = null,
+        string? description = null,
+        ObligationFrequency? frequencyInterval = null,
         int? frequencyValue = null,
         DateTime? endDate = null,
         ICollection<WorkspaceMember>? visibleTo = null,
@@ -89,11 +89,12 @@ public class Obligation : ScopedEntity<ObligationId, WorkspaceId>
         
         var entity = new Obligation()
         {
+            Id = Guid.NewGuid(),
             WorkspaceId = workspaceId,
             CategoryId = categoryId,
             Name =  name,
             Description = description,
-            FrequencyInterval = frequency,
+            FrequencyInterval = frequencyInterval,
             FrequencyValue = frequencyValue,
             NextDate = startDate,
             ExpirationDate = endDate,

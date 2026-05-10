@@ -9,7 +9,7 @@ namespace Reminlo.Domain.Common;
 public interface IGuid {}
 
 
-[StronglyTypedId]
+[StronglyTypedId(Template.Guid)]
 public partial struct ObligationReminderId : IGuid
 {
     public static implicit operator ObligationReminderId(Guid guid)
@@ -18,7 +18,7 @@ public partial struct ObligationReminderId : IGuid
     }
 }
 
-[StronglyTypedId]
+[StronglyTypedId(Template.Guid)]
 public partial struct ObligationId : IGuid
 {
     public static implicit operator ObligationId(Guid guid)
@@ -27,7 +27,7 @@ public partial struct ObligationId : IGuid
     }
 }
 
-[StronglyTypedId]
+[StronglyTypedId(Template.Guid)]
 public partial struct ObligationCategoryId : IGuid
 {
     public static implicit operator ObligationCategoryId(Guid guid)
@@ -36,7 +36,7 @@ public partial struct ObligationCategoryId : IGuid
     }
 }
 
-[StronglyTypedId]
+[StronglyTypedId(Template.Guid)]
 public partial struct WorkspaceId : IGuid
 {
     public static implicit operator WorkspaceId(Guid guid)
@@ -46,7 +46,7 @@ public partial struct WorkspaceId : IGuid
 }
 
 
-[StronglyTypedId]
+[StronglyTypedId(Template.Guid)]
 public partial struct WorkspaceMemberId : IGuid
 {
     public static implicit operator WorkspaceMemberId(Guid guid)
@@ -55,7 +55,7 @@ public partial struct WorkspaceMemberId : IGuid
     }
 }
 
-[StronglyTypedId]
+[StronglyTypedId(Template.Guid)]
 public partial struct WorkspaceInvitationId : IGuid
 {
     public static implicit operator WorkspaceInvitationId(Guid guid)

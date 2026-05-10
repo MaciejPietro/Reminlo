@@ -54,6 +54,10 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<Reminlo.Api.Filters.ErrorOrResultFilter>();
     options.Filters.Add<Reminlo.Api.Filters.ApiResponseWrapperFilter>();
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new Reminlo.Api.Converters.StronglyTypedIdJsonConverterFactory());
 });
 
 builder.Services.AddSwaggerConfiguration();
