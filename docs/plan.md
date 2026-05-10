@@ -15,8 +15,8 @@ No calendar entry is created automatically — the user converts an obligation t
 ### Tasks
 
 1. Create `obligation_categories` table with fields: `id`, `name` (unique), `created_at`, `updated_at` — super admin only CRUD
-2. Create `obligations` table with fields: `id`, `workspace_id`, `created_by` (FK to workspace_members), `category_id`, `title`, `description`, `frequency` (nullable), `priority`, `next_due_date`, `end_date`, `visible_to` (array of workspace_member IDs), `is_active`
-3. Create `obligation_reminders` table with fields: `id`, `obligation_id`, `reminder_days`, `reminder_type`, `is_active`
+2. Create `obligations` table with fields: `id`, `workspace_id`, `created_by` (FK to workspace_members), `category_id`, `name`, `description`, `frequencyInterval` (nullable), `frequencyValue` (nullable), `priority`, `nextDate`, `expirationDate`, `visibleTo` (collection of WorkspaceMember), `status`
+3. Create `obligation_reminders` table with fields: `id`, `obligation_id`, `reminderDays`, `notificationType`, `status`
 4. Add access control:
    - Only creator or workspace owner can update/delete obligations
    - Super admin can manage categories
@@ -25,11 +25,11 @@ No calendar entry is created automatically — the user converts an obligation t
    - `/api/obligation-categories` (super admin only)
    - `/api/workspaces/:workspace_id/obligations` with query filters (category_id, priority, start_date, end_date, status)
 6. Build reminder CRUD: `/api/workspaces/:workspace_id/obligations/:obligation_id/reminders`
-7. Implement `next_due_date` calculation:
-   - For `frequency=null`: use user-provided date
-   - For recurring: calculate `now + frequency` (weekly=+7 days, monthly=+30 days, yearly=+365 days)
+7. Implement `nextDate` calculation:
+   - For `frequencyInterval=null`: use user-provided date
+   - For recurring: calculate `now + (frequencyInterval * frequencyValue)` (weekly=+7 days, monthly=+30 days, yearly=+365 days)
 8. Implement `POST /obligations/:obligation_id/create-event` — converts obligation to event, updates `next_due_date` 
-9. Build cron job: every 30 minutes, check obligation_reminders where `next_due_date - reminder_days <= NOW()` and `is_active=true` and workspace is not frozen, send email
+9. Build cron job: every 30 minutes, check obligation_reminders where `nextDate - reminderDays <= NOW()` and `status=Active` and workspace is not frozen, send email
 10. Workspace freeze logic: if workspace owner leaves (OwnerId becomes null), block all read/create/update/delete operations on that workspace's obligations
 11. Frontend: obligations list with filters (category, priority, date range, status), create/edit dialog with category + visibility + priority, detail page with "Create event" CTA
 12. Frontend: "Due soon" section showing obligations due within 7 days, respecting visibility rules
@@ -37,7 +37,7 @@ No calendar entry is created automatically — the user converts an obligation t
 ### Definition of done
 
 A user can:
-1. Create "Car service on Nov 12, 2026" in the Car category with priority High, reminder 1 week before, visible to family members only
+1. Create "Car service on Nov 12, 2026" in the Car category with priority High, reminderDays 7, visibleTo family members only
 2. Receive a reminder email on Nov 5
 3. See it in "Due soon" with a badge
 4. Filter obligations by category (Car), priority (High), and date range

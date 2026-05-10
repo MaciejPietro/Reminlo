@@ -17,25 +17,25 @@ When listing obligations, filter like this:
 ```sql
 WHERE workspace_id = :workspace_id
   AND (
-    visible_to IS NULL  -- visible to all
+    visibleTo IS NULL  -- visible to all
     OR created_by = :current_workspace_member_id  -- creator always sees their own
     OR :current_user_id = (SELECT owner_id FROM workspaces WHERE id = workspace_id)  -- workspace owner sees all
-    OR :current_workspace_member_id = ANY(visible_to)  -- listed in visible_to
+    OR :current_workspace_member_id IN (SELECT * FROM visibleTo)  -- listed in visibleTo
   )
 ```
-All four conditions matter. Compare `created_by` and `visible_to` against the CURRENT USER'S `workspace_member(id)`, not their user ID. Workspace owner always sees everything regardless of visibility. Do not leak obligations to workspace members who shouldn't see them.
+All four conditions matter. Compare `created_by` and `visibleTo` against the CURRENT USER'S `workspace_member(id)`, not their user ID. Workspace owner always sees everything regardless of visibility. Do not leak obligations to workspace members who shouldn't see them.
 
-**Obligation `created_by` and `visible_to` reference WorkspaceMember.**
-Both fields use `workspace_member(id)`, not `user(id)`. This enforces that:
+**Obligation `created_by` and `visibleTo` reference WorkspaceMember.**
+`created_by` is a foreign key to `workspace_member(id)`. `visibleTo` is a collection of WorkspaceMember objects. This enforces that:
 - Creator must be an active workspace member at creation time
-- Only active workspace members can be in `visible_to` arrays
+- Only active workspace members can be in `visibleTo` collection
 
-When updating `visible_to` array, validate that all member IDs are:
+When updating `visibleTo` collection, validate that all members are:
 1. Active members of the same workspace
 2. In Active status (not Removed/Inactive)
-Reject the request if any ID is invalid.
+Reject the request if any member is invalid.
 
-On workspace member removal, run cleanup to remove that member from all `visible_to` arrays in that workspace. Use `ON DELETE RESTRICT` for `created_by` to prevent deleting a member if they created obligations (or soft-delete the obligation instead).
+On workspace member removal, run cleanup to remove that member from all `visibleTo` collections in that workspace. Use `ON DELETE RESTRICT` for `created_by` to prevent deleting a member if they created obligations (or soft-delete the obligation instead).
 
 **Obligations require workspace owner for updates.**
 Only `created_by` user OR workspace owner can update/delete obligations. Other workspace members get 403 Forbidden. Categories are global and require super admin.
@@ -48,19 +48,19 @@ Before creating `event_notifications` rows, validate that every user in `assigne
 ## Data Integrity
 
 **Obligation reminders are separate and optional.**
-An obligation can exist without any reminders. Reminders are stored in a separate `obligation_reminders` table with a foreign key to `obligations`. Allow users to add, update, or delete reminders independently of the obligation. Validate `reminder_days` is not negative and `is_active` determines whether reminders are processed by the cron job.
+An obligation can exist without any reminders. Reminders are stored in a separate `obligation_reminders` collection/table with a foreign key to `obligations`. Allow users to add, update, or delete reminders independently of the obligation. Validate `reminderDays` is not negative and `status=Active` determines whether reminders are processed by the cron job.
 
 **Obligation categories are global and immutable after creation.**
 Categories are not scoped to workspaces — they're application-wide. Only super admins can create/edit/delete. Once a category is created, users reference it by `category_id`. Do NOT allow renaming or deletion if obligations exist with that category (soft-delete/archive the category instead). This prevents data inconsistency across workspaces.
 
-**`visible_to` is a UUID array of WorkspaceMember IDs.**
-Like `assigned_to` in events, this is stored as a UUID[] array. While `created_by` has a foreign key constraint, `visible_to` does NOT (it's an array). Validate at the application layer:
-1. On obligation creation: check all member IDs exist, are active, and belong to the same workspace
-2. On obligation update: re-validate the new array
-3. On member removal: run cleanup to remove them from all `visible_to` arrays in their workspace
+**`visibleTo` is a collection of WorkspaceMember objects.**
+`visibleTo` can be null (visible to all), empty (visible to creator only), or contain WorkspaceMember references. While `created_by` has a foreign key constraint, `visibleTo` is a collection relationship. Validate at the application layer:
+1. On obligation creation: check all members exist, are active, and belong to the same workspace
+2. On obligation update: re-validate the new collection
+3. On member removal: run cleanup to remove them from all `visibleTo` collections in their workspace
 4. On workspace deletion: cascade delete all obligations
 
-Future: consider migrating to a join table if obligations need member roles (organizer, viewer, etc.)
+Future: if obligations need member roles (organizer, viewer, etc.), update the collection to include role metadata.
 
 **`assigned_to` is a JSONB array, not a foreign key.**
 This means the database will not enforce membership. Validate at the application layer on create and on update. When a user leaves a workspace, run a cleanup to remove their ID from any `assigned_to` arrays in that workspace's events.
@@ -71,8 +71,8 @@ If an obligation is deleted, events created from it keep their data — only the
 **Soft delete obligations, hard delete events.**
 Obligations use `is_active = false` (soft delete) because `next_due_date` history is useful for the future. Events can be hard deleted since they cascade to `event_notifications`.
 
-**`next_due_date` must be updated atomically with event creation.**
-When a user converts an obligation to an event, update `obligation.next_due_date` in the same database transaction as the event insert. If the transaction fails, roll everything back.
+**`nextDate` must be updated atomically with event creation.**
+When a user converts an obligation to an event, update `obligation.nextDate` in the same database transaction as the event insert. If the transaction fails, roll everything back.
 
 ---
 
@@ -91,32 +91,24 @@ Never mark a notification as sent before the email provider confirms delivery. A
 
 ## Schema Future-Proofing
 
-**`frequency` determines obligation type.**
-`frequency` can be NULL (one-time), `weekly`, `monthly`, `yearly`, or `custom`.
+**`frequencyInterval` and `frequencyValue` determine obligation type.**
+`frequencyInterval` can be NULL (one-time), `Daily`, `Weekly`, `Monthly`, `Yearly`. `frequencyValue` is the numeric multiplier (e.g., 2 for biweekly).
 - NULL: user-specified deadline, no recurrence
-- `weekly`: recurs every 7 days
-- `monthly`: recurs every 30 days (or use day-of-month logic if needed later)
-- `yearly`: recurs every 365 days
-- `custom`: reserved for future `rrule` support
+- `Weekly` with `frequencyValue=1`: recurs every 7 days
+- `Monthly` with `frequencyValue=1`: recurs every 30 days (or use day-of-month logic if needed later)
+- `Yearly` with `frequencyValue=1`: recurs every 365 days
+- Future: add `rruleString` column for custom recurrence patterns
 
-When you add recurring *events* (weekly tennis), you will need `rrule` support. Design to be migratable — consider adding an `rrule_string` column (nullable) from day one. No logic needed now, just reserve it.
+When you add recurring *events* (weekly tennis), you will need `rrule` support. Design to be migratable — consider adding an `rruleString` column (nullable) from day one. No logic needed now, just reserve it.
 
-**`next_due_date` has different meanings:**
-For one-time obligations (frequency=NULL), it's the deadline (user-specified). For recurring obligations, it's the next occurrence (calculated from now + frequency interval). Always store in UTC; display in user's timezone on frontend.
+**`nextDate` has different meanings:**
+For one-time obligations (frequencyInterval=NULL), it's the deadline (user-specified). For recurring obligations, it's the next occurrence (calculated from now + frequencyInterval * frequencyValue). Always store in UTC; display in user's timezone on frontend.
 
-**`notification_type` should be an enum or constrained.**
-Currently only `email` is supported for both obligation reminders and event notifications. Add check constraints now on both tables:
-```sql
--- On obligation_reminders table
-CHECK (reminder_type IN ('email', 'in_app', 'sms', 'push'))
+**`notificationType` should be an enum.**
+Currently only `Email` is supported for both obligation reminders and event notifications. Use the `NotificationType` enum with values: `Email`, `InApp`, `SMS`, `Push`. This prevents invalid data and documents the intended future values. Consider constraint validation in the database layer.
 
--- On event_notifications table
-CHECK (notification_type IN ('email', 'in_app', 'sms', 'push'))
-```
-This prevents invalid data and documents the intended future values.
-
-**`assigned_to` might need to become a join table.**
-`JSONB []` is fine for iteration 2. By iteration 3 (proposals, conflict detection), you will likely need `event_members` with roles (`organizer`, `attendee`, `optional`). Design the JSON structure now to match: `[{"user_id": "...", "role": "attendee"}]` instead of a plain array of IDs. Migrating to a join table later is straightforward if the shape is already structured.
+**`assignedTo` might need to become a join table.**
+JSONB collection is fine for iteration 2. By iteration 3 (proposals, conflict detection), you will likely need `event_members` with roles (`organizer`, `attendee`, `optional`). Design the JSON structure now to match: `[{"userId": "...", "role": "attendee"}]` instead of a plain array of IDs. Migrating to a join table later is straightforward if the shape is already structured.
 
 ---
 
@@ -141,5 +133,5 @@ For now, require both `start_time` and `end_time`. Do not add `is_all_day` until
 **Never expose `workspace_id` logic to the client.**
 The client passes `workspace_id` in the URL, but the backend must re-verify membership on every request. Middleware should do this — not individual handlers.
 
-**`assigned_to` user IDs must be validated.**
-A user could pass arbitrary UUIDs in `assigned_to`. Always cross-reference against actual workspace members before persisting.
+**`assignedTo` user IDs must be validated.**
+A user could pass arbitrary UUIDs in `assignedTo`. Always cross-reference against actual workspace members before persisting.

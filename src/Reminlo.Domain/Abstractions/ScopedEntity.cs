@@ -1,9 +1,18 @@
 namespace Reminlo.Domain.Abstractions;
 
-public interface ScopedEntity<TKey>
+public abstract class ScopedEntity<TKey> : AuditableEntity<TKey>
 {
     /// <summary>
     /// The identifier for the relation with workspace.
     /// </summary>
-    public TKey WorkspaceId { get; set; } = default!;
+    public TKey WorkspaceId { get; set; }
+}
+
+
+public abstract class ScopedEntity<TKey, TScopeKey>  : AuditableEntity<TKey>
+{
+    /// <summary>
+    /// The identifier for the relation with workspace.
+    /// </summary>
+    public TScopeKey WorkspaceId { get; set; }
 }

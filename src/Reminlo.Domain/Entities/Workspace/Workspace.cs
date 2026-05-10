@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using Reminlo.Domain.Abstractions;
 using Reminlo.Domain.Common;
 
@@ -11,6 +12,8 @@ public class Workspace : BaseEntity<WorkspaceId>
 
     public ICollection<WorkspaceInvitation> Invitations { get; private set; }
 
+    
+    
     
     private Workspace()
     {
